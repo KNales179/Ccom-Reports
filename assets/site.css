@@ -312,6 +312,52 @@ footer.doc {
   color: var(--muted);
 }
 
+
+
+/* ---- comments ---- */
+.answer { margin: 0.9rem 0 0.4rem; }
+
+.comment-form label {
+  display: block;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0 0 0.3rem;
+}
+
+.comment-form .name-label { margin-top: 0.8rem; }
+
+.comment-form textarea,
+.comment-form input[type="text"] {
+  display: block;
+  width: 100%;
+  font: 400 1rem/1.5 var(--serif);
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.6rem 0.7rem;
+}
+
+.comment-form textarea { min-height: 6rem; resize: vertical; }
+.comment-form textarea:focus-visible,
+.comment-form input[type="text"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.comment-form .row { display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; margin-top: 0.7rem; }
+.comment-form button.button { border: 0; cursor: pointer; }
+.comment-form button.button:disabled { opacity: 0.55; cursor: default; }
+.comment-form .status { font-family: var(--sans); font-size: 0.85rem; color: var(--muted); }
+.comment-form .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+.saved { border-left: 3px solid var(--line); padding: 0.1rem 0 0.1rem 0.9rem; margin: 0.9rem 0; }
+.saved .when { font-family: var(--sans); font-size: 0.78rem; color: var(--muted); }
+.saved .text { margin: 0.15rem 0 0.4rem; white-space: pre-wrap; font-size: 1rem; }
+.saved .reply { background: var(--soft); border-radius: 4px; padding: 0.55rem 0.8rem; margin-top: 0.5rem; }
+.saved .reply .who { display: block; font-family: var(--sans); font-size: 0.78rem; color: var(--muted); }
+.saved .reply .text { margin-bottom: 0; }
+
+.note-muted { font-family: var(--sans); font-size: 0.9rem; color: var(--muted); }
+
 @media print {
-  .theme-toggle, .contents { display: none; }
+  .theme-toggle, .contents, .comment-form { display: none; }
 }
