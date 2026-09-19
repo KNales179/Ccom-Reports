@@ -94,7 +94,7 @@
     });
   }
 
-  function build(box) {
+  function build(box, preview) {
     var key = box.getAttribute('data-comment-form');
     var general = key === 'general';
     box.classList.add('comment-form');
@@ -142,6 +142,14 @@
     row.appendChild(status);
     form.appendChild(row);
 
+    // Until the database is connected, show the boxes so the layout can be judged, but don't let anyone type
+    if (preview) {
+      ta.disabled = true;
+      if (nameInput) nameInput.disabled = true;
+      btn.disabled = true;
+      status.textContent = 'Preview only: saving is not switched on yet.';
+    }
+
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var text = ta.value.trim();
@@ -162,16 +170,10 @@
   }
 
   if (!configured) {
-    boxes.forEach(function (box) {
-      if (box.getAttribute('data-comment-form') === 'general') {
-        box.appendChild(el('p', 'note-muted', "Comments aren't switched on for this page yet."));
-      } else {
-        box.hidden = true;
-      }
-    });
+    boxes.forEach(function (box) { build(box, true); });
     return;
   }
 
-  boxes.forEach(build);
+  boxes.forEach(function (box) { build(box, false); });
   load();
 })();

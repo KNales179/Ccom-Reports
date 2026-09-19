@@ -45,8 +45,8 @@ ask for comments saved with that id. So Ms Kay sees her own comments (and your
 replies) on the device she wrote them on, and no one else's. If she switches device
 she will not see her earlier comments there, though you still will.
 
-Until the two values are filled in, the page shows "Comments aren't switched on for
-this page yet."
+Until the two values are filled in, the boxes still show but are greyed out and marked
+"Preview only: saving is not switched on yet."
 
 ## Adding a report
 
