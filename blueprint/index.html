@@ -32,8 +32,8 @@
       <a href="#demo">Showing you the journey</a> &middot;
       <a href="#story">How we got here</a> &middot;
       <a href="#order">Order of work</a> &middot;
-      <a href="#questions">Questions for Ms Kay</a> &middot;
-      <a href="#appendix">Technical appendix</a>
+      <a href="#appendix">Technical appendix</a> &middot;
+      <a href="#questions">Questions for Ms Kay</a>
     </p>
   </header>
 
@@ -86,7 +86,7 @@ flowchart TB
       <figcaption>Figure 1. The whole system. The dotted line is progress news sent back to the family while they wait. Most of the days a family waits are spent in the middle, in the workshop.</figcaption>
     </figure>
 
-    <p>We build and own the family pages (upload and status), the studio dashboard and the companion player. We borrow Tripo for the 3D model and skeleton, Blender for the artist's tidy-up, and Claude for the comforting conversation.</p>
+    <p>We build and own the family pages (upload and status), the studio dashboard and the companion player. We borrow Tripo for the 3D model and skeleton, and Blender for the artist's tidy-up. The comforting conversation would also need an AI language model behind it. We haven't chosen which one, and it's one of the smaller decisions listed near the end.</p>
     <p>It isn't all one system because turning photos into a good 3D animal is a hard, specialised problem. The tools that do it well already exist, so the sensible design is to build everything around them and keep the family's experience ours.</p>
 
     <div class="table-wrap">
@@ -307,6 +307,89 @@ sequenceDiagram
       <figcaption>Figure 4. The stages laid out over weeks, at about 10 hours a week. The dashed bars depend on finding an artist and a grief specialist. If Resolve UK takes priority for a while, everything moves later.</figcaption>
     </figure>
 
+    <h2 id="appendix">Technical appendix</h2>
+    <p>This part is for whoever builds or takes over the system. Everyone else can skip straight to the <a href="#questions">questions</a> at the end.</p>
+
+    <h3>How the pieces connect</h3>
+    <figure>
+      <pre class="mermaid">
+flowchart TB
+  FAM["Family's phone or browser: upload page, status page and companion player"]
+  TOOLS["Tripo and Blender, on the studio's own computers"]
+  DASH["Studio dashboard: where staff sign in"]
+  subgraph Host["Our hosted app"]
+    API["Backend: orders, sign-in and private links"]
+    DB[("Database")]
+    FS[("File storage")]
+  end
+  subgraph Ext["Outside services"]
+    LLM["AI language model"]
+    MAIL["Email"]
+  end
+  TOOLS -.->|"by hand"| DASH
+  FAM --> API
+  DASH --> API
+  API --> DB
+  API --> FS
+  API -->|"chat messages"| LLM
+  API --> MAIL
+      </pre>
+      <figcaption>Figure 5. Where the data lives and which parts talk to each other. The families’ pages and the companion player run in their own browser. For now the studio moves files from Tripo and Blender into the dashboard by hand (the dotted line). The database holds families, pets, orders and their history. File storage holds photos, videos, sounds and finished models.</figcaption>
+    </figure>
+    <p>The AI key stays on the server and never reaches the browser. The companion player itself is a static page, and everything private sits behind the backend.</p>
+
+    <h3>Data model</h3>
+    <p>As with Resolve UK, an order's history becomes a list of entries that only ever grows. The current stage is then a shortcut copied from the latest entry, not the source of truth.</p>
+    <figure>
+      <pre class="mermaid">
+erDiagram
+  FAMILIES ||--o{ PETS : owns
+  PETS ||--o{ MATERIALS : "has files"
+  PETS ||--o| COMPANIONS : "becomes"
+  PETS ||--|{ ORDER_EVENTS : "has history"
+  STAFF ||--o{ ORDER_EVENTS : "makes changes"
+  FAMILIES {
+    uuid id PK
+    text name
+    text email
+    text link_token
+  }
+  PETS {
+    uuid id PK
+    uuid family_id FK
+    text name
+    text species
+    text state
+  }
+  MATERIALS {
+    uuid id PK
+    uuid pet_id FK
+    text kind
+    text file_path
+  }
+  COMPANIONS {
+    uuid id PK
+    uuid pet_id FK
+    text model_path
+    text source_path
+    jsonb settings
+  }
+  ORDER_EVENTS {
+    uuid id PK
+    uuid pet_id FK
+    text state
+    text actor_type
+    text note
+  }
+  STAFF {
+    uuid id PK
+    text name
+    text role
+  }
+      </pre>
+      <figcaption>Figure 6. The main tables and how they relate, with only the key fields shown. Files are stored by path, not full link, so moving hosts never breaks one. The artist’s original .blend file is kept beside the finished model (source_path), so any companion can be reopened and adjusted later. A pet’s state is a shortcut copied from the latest entry in its history.</figcaption>
+    </figure>
+
     <h2 id="questions">Questions for Ms Kay</h2>
     <p>Four questions would help us most.</p>
     <ol class="questions">
@@ -325,104 +408,9 @@ sequenceDiagram
       <li>Which animals to start with. Cats and dogs need different skeletons, and starting with one keeps things simpler.</li>
       <li>How long we keep families' photos and recordings, and how deletion on request works. Families are sharing photos and voices at a hard time, so this needs UK data-protection advice.</li>
       <li>What the comforting conversation will and won't say, and when it points someone to real support. This needs a grief specialist.</li>
+      <li>Which AI language model service would power the conversation, or whether we'd run our own. We haven't chosen, and it affects cost and where families' words are processed.</li>
       <li>If Resolve UK and Celestial Companions compete for time, which comes first?</li>
     </ul>
-
-    <h2 id="appendix">Technical appendix</h2>
-    <p>This part is for whoever builds or takes over the system. Everyone else can skip it.</p>
-
-    <h3>How the pieces connect</h3>
-    <figure>
-      <pre class="mermaid">
-flowchart TB
-  subgraph Fam["Family phone or browser"]
-    FA["Upload page and status page"]
-    PL["Companion player"]
-  end
-  subgraph Staff["Studio staff computers"]
-    SD["Studio dashboard"]
-    TR["Tripo Studio in the browser"]
-    BL["Blender on the artist's PC"]
-  end
-  subgraph Host["Our hosted app"]
-    API["Small backend: orders, sign-in, private links"]
-    DB[("Database: families, pets, orders, history")]
-    FS[("File storage: photos, videos, sounds, finished models")]
-  end
-  subgraph Ext["Outside services"]
-    LLM["Claude API: comforting conversation"]
-    MAIL["Email: progress and delivery messages"]
-  end
-  FA -->|"materials"| API
-  SD -->|"orders and status changes"| API
-  API --> DB
-  API --> FS
-  TR -.->|"model file, saved by hand at first"| SD
-  BL -.->|"finished model, uploaded by hand"| SD
-  PL -->|"asks for the companion"| API
-  API -->|"chat messages, key kept on the server"| LLM
-  API --> MAIL
-      </pre>
-      <figcaption>Figure 5. Where the data lives and which parts talk to each other. Dotted lines are manual steps today.</figcaption>
-    </figure>
-    <p>The AI key stays on the server and never reaches the browser. The companion player itself is a static page, and everything private sits behind the backend.</p>
-
-    <h3>Data model</h3>
-    <p>As with Resolve UK, an order's history becomes a list of entries that only ever grows. The current stage is then a shortcut copied from the latest entry, not the source of truth.</p>
-    <figure>
-      <pre class="mermaid">
-erDiagram
-  FAMILIES ||--o{ PETS : owns
-  PETS ||--o{ MATERIALS : "has files"
-  PETS ||--o| COMPANIONS : "becomes"
-  PETS ||--|{ ORDER_EVENTS : "has history"
-  STAFF ||--o{ ORDER_EVENTS : "makes changes"
-  FAMILIES {
-    uuid id PK
-    text name
-    text email
-    text private_link_token
-  }
-  PETS {
-    uuid id PK
-    uuid family_id FK
-    text name
-    text species "cat or dog for now"
-    text personality_notes
-    text current_state "copied from latest event"
-  }
-  MATERIALS {
-    uuid id PK
-    uuid pet_id FK
-    text kind "photo, video or sound"
-    text file_path
-    timestamptz uploaded_at
-  }
-  COMPANIONS {
-    uuid id PK
-    uuid pet_id FK
-    text model_path "the finished .glb"
-    text source_path "the artist's .blend file"
-    jsonb settings "energy, affection, playfulness"
-    timestamptz approved_at
-  }
-  ORDER_EVENTS {
-    uuid id PK
-    uuid pet_id FK
-    text state
-    text actor_type "family, staff, artist or system"
-    uuid actor_id
-    text note
-    timestamptz created_at
-  }
-  STAFF {
-    uuid id PK
-    text display_name
-    text role "staff, artist or admin"
-  }
-      </pre>
-      <figcaption>Figure 6. The tables and how they relate. Files are stored by path, not full link, so moving hosts never breaks one. The artist's original .blend file is kept beside the finished model, so any companion can be reopened and adjusted later.</figcaption>
-    </figure>
 
   </main>
 
