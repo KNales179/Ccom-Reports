@@ -29,19 +29,28 @@ can read and answer everything in one place.
 One-time setup:
 
 1. Create a Supabase project (choose a UK or EU region such as London).
-2. Open the SQL editor, paste in `supabase/schema.sql` and run it.
-3. In Project Settings > API, copy the Project URL and the `anon public` key into
-   `assets/comments-config.js`. The anon key is meant to be public. Never put the
+2. Open the SQL editor, paste in `supabase/schema.sql` and run it. (It is safe to run again.)
+3. In Project Settings > API, copy the Project URL and the `anon public` key (or the newer
+   `publishable` key) into `assets/comments-config.js`. The anon key is meant to be public. Never put the
    `service_role` key in this repository.
 4. Push to GitHub and Vercel redeploys.
 
-Reading and replying: open Table Editor > `report_comments`. Every answer and
+Each page labels its comments with its own key (`data-report` on the script tag; this
+site uses `ccom-blueprint`), so one Supabase project can hold comments for several
+report sites. Filter by the `report` column in the Table Editor. Use a separate project
+from any app database.
+
+Each reader gets one answer per question and one comment at the end. After she saves, the
+input is replaced by what she wrote; the pen icon (or a double-click) turns it back into an
+input so she can change it. The row is updated, and `updated_at` shows when it was last edited.
+
+Reading and replying: open Table Editor > `reports_site_comments`. Every answer and
 comment is a row. To reply, type into that row's `reply` cell; the reply appears
 under her comment on the page the next time she opens it.
 
-How it stays private: anyone with the link can add a comment, but nobody can read
-the table directly. Each browser makes up a private random id, and the page can only
-ask for comments saved with that id. So Ms Kay sees her own comments (and your
+How it stays private: nobody can read or write the table directly. Each browser makes
+up a private random id, and the page can only save and fetch comments under that id, through
+two database functions. So Ms Kay sees her own comments (and your
 replies) on the device she wrote them on, and no one else's. If she switches device
 she will not see her earlier comments there, though you still will.
 

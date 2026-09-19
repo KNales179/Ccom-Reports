@@ -351,6 +351,14 @@ footer.doc {
 
 .saved { border-left: 3px solid var(--line); padding: 0.1rem 0 0.1rem 0.9rem; margin: 0.9rem 0; }
 .saved .when { font-family: var(--sans); font-size: 0.78rem; color: var(--muted); }
+.saved-top { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; }
+.pen { background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--muted); cursor: pointer; padding: 0.3rem 0.4rem; line-height: 0; }
+.pen:hover { color: var(--ink); border-color: var(--line); }
+.pen:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pen svg { display: block; }
+.saved > .text { cursor: text; }
+.comment-form button.button.quiet { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+.comment-form button.button.quiet:hover { color: var(--ink); }
 .saved .text { margin: 0.15rem 0 0.4rem; white-space: pre-wrap; font-size: 1rem; }
 .saved .reply { background: var(--soft); border-radius: 4px; padding: 0.55rem 0.8rem; margin-top: 0.5rem; }
 .saved .reply .who { display: block; font-family: var(--sans); font-size: 0.78rem; color: var(--muted); }
