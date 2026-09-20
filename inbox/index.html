@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Inbox</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js"></script>
+<style>
+  .inbox-tools { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; font-family: var(--sans); font-size: 0.9rem; color: var(--muted); margin: 0 0 1.5rem; }
+  .inbox-tools .grow { flex: 1; }
+  .card { border-top: 1px solid var(--line); padding: 1.1rem 0 0.4rem; }
+  .card .q { font-family: var(--sans); font-size: 0.82rem; color: var(--muted); margin: 0 0 0.2rem; }
+  .card .tag { display: inline-block; font-family: var(--sans); font-size: 0.72rem; font-weight: 600; border: 1px solid var(--accent); color: var(--accent); border-radius: 3px; padding: 0 0.4rem; margin-left: 0.4rem; }
+  .card .text { white-space: pre-wrap; margin: 0.2rem 0 0.8rem; }
+  .card label { display: block; font-family: var(--sans); font-size: 0.82rem; color: var(--muted); margin: 0 0 0.3rem; }
+  .card textarea { display: block; width: 100%; min-height: 4.5rem; resize: vertical; font: 400 1rem/1.5 var(--serif); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 0.55rem 0.7rem; }
+  .card textarea:focus-visible, #pass:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .card .row { display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; margin: 0.6rem 0 1rem; }
+  .card .status { font-family: var(--sans); font-size: 0.85rem; color: var(--muted); }
+  #pass { display: block; width: 100%; max-width: 26rem; font: 400 1rem var(--sans); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 0.6rem 0.7rem; margin: 0.3rem 0 0.8rem; }
+  button.button { border: 0; cursor: pointer; }
+  button.button:disabled { opacity: 0.55; cursor: default; }
+  button.button.quiet { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  .message { font-family: var(--sans); font-size: 0.9rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <span>Celestial Companions</span>
+    <button type="button" class="theme-toggle">Dark mode</button>
+  </div>
+
+  <header class="doc">
+    <h1>Inbox</h1>
+    <p class="byline">Private. Answers and comments from the Celestial Companions reports site.</p>
+  </header>
+
+  <main>
+    <section id="gate" hidden>
+      <form id="gate-form">
+        <label for="pass" class="message">Passphrase</label>
+        <input id="pass" type="password" autocomplete="current-password">
+        <button type="submit" class="button" id="gate-go">Open inbox</button>
+        <p class="message" id="gate-msg" role="status"></p>
+      </form>
+    </section>
+
+    <section id="list" hidden>
+      <div class="inbox-tools">
+        <span id="summary"></span>
+        <span class="grow"></span>
+        <button type="button" class="button quiet" id="refresh">Refresh</button>
+        <button type="button" class="button quiet" id="lock">Lock</button>
+      </div>
+      <div id="cards"></div>
+    </section>
+
+    <p class="message" id="off" hidden>The database connection isn't set up on this page yet.</p>
+  </main>
+
+  <footer class="doc">Private inbox &middot; not linked from the reports site</footer>
+
+</div>
+
+<script src="../assets/comments-config.js"></script>
+<script>
+(function () {
+  var REPORT = 'ccom-blueprint';
+  var LABELS = {
+    q1: 'Question 1: how long a family will wait, and what they can do meanwhile',
+    q2: 'Question 2: who finishes each companion by hand',
+    q3: 'Question 3: what a family ends up with',
+    q4: 'Question 4: what families can send, and branch staff collecting it',
+    general: 'Comments at the end'
+  };
+  var ORDER = ['q1', 'q2', 'q3', 'q4', 'general'];
+  var cfg = window.COMMENTS_CONFIG || {};
+  var secret = null;
+  var rows = [];
+
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text) n.textContent = text; return n; }
+
+  function headers() {
+    var h = { apikey: cfg.anonKey, 'Content-Type': 'application/json' };
+    if (/^eyJ/.test(cfg.anonKey)) h.Authorization = 'Bearer ' + cfg.anonKey;
+    return h;
+  }
+
+  function rpc(name, body) {
+    return fetch(cfg.url.replace(/\/+$/, '') + '/rest/v1/rpc/' + name, { method: 'POST', headers: headers(), body: JSON.stringify(body) })
+      .then(function (r) {
+        return r.json().catch(function () { return null; }).then(function (data) {
+          if (!r.ok) { var e = new Error((data && data.message) || ('HTTP ' + r.status)); e.status = r.status; throw e; }
+          return data;
+        });
+      });
+  }
+
+  function when(iso) {
+    try { return new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; }
+  }
+
+  function keep(s) { try { sessionStorage.setItem('ccom_inbox', s); } catch (e) {} }
+  function recall() { try { return sessionStorage.getItem('ccom_inbox'); } catch (e) { return null; } }
+  function forget() { try { sessionStorage.removeItem('ccom_inbox'); } catch (e) {} }
+
+  function show(which) {
+    $('gate').hidden = which !== 'gate';
+    $('list').hidden = which !== 'list';
+    $('off').hidden = which !== 'off';
+  }
+
+  function load() {
+    return rpc('owner_list_site_comments', { p_secret: secret, p_report: REPORT }).then(function (data) {
+      rows = data || [];
+      render();
+      show('list');
+    });
+  }
+
+  function waiting() { return rows.filter(function (r) { return !r.reply; }).length; }
+
+  function updateSummary() {
+    var n = rows.length, w = waiting();
+    $('summary').textContent = n + (n === 1 ? ' comment' : ' comments') + ' · ' + (w === 0 ? 'all replied to' : w + ' waiting for a reply');
+  }
+
+  function card(r) {
+    var c = el('div', 'card comment-form');
+    var q = el('p', 'q', (LABELS[r.question_key] || r.question_key || 'Comment') + ' · ' + (r.author_name ? r.author_name + ' · ' : '') + (r.updated_at ? 'edited ' + when(r.updated_at) : when(r.created_at)));
+    if (!r.reply) q.appendChild(el('span', 'tag', 'Needs a reply'));
+    c.appendChild(q);
+    c.appendChild(el('p', 'text', r.body));
+
+    var label = el('label', null, 'My reply (shown under her answer)');
+    var ta = el('textarea');
+    ta.id = 'reply-' + r.id;
+    ta.maxLength = 4000;
+    ta.value = r.reply || '';
+    label.htmlFor = ta.id;
+    c.appendChild(label);
+    c.appendChild(ta);
+
+    var row = el('div', 'row');
+    var btn = el('button', 'button', r.reply ? 'Update reply' : 'Send reply');
+    btn.type = 'button';
+    var status = el('span', 'status');
+    status.setAttribute('role', 'status');
+    row.appendChild(btn);
+    row.appendChild(status);
+    c.appendChild(row);
+
+    btn.addEventListener('click', function () {
+      btn.disabled = true;
+      status.textContent = 'Saving…';
+      rpc('owner_reply_site_comment', { p_secret: secret, p_id: r.id, p_reply: ta.value })
+        .then(function (out) {
+          var o = out && out[0];
+          r.reply = o ? o.reply : (ta.value.trim() || null);
+          r.replied_at = o ? o.replied_at : r.replied_at;
+          updateSummary();
+          btn.textContent = r.reply ? 'Update reply' : 'Send reply';
+          var tag = q.querySelector('.tag');
+          if (r.reply && tag) tag.remove();
+          if (!r.reply && !tag) q.appendChild(el('span', 'tag', 'Needs a reply'));
+          status.textContent = r.reply ? 'Saved. She will see it next time she opens the page.' : 'Reply removed.';
+        })
+        .catch(function () { status.textContent = "That didn't save. Try again in a moment."; })
+        .then(function () { btn.disabled = false; });
+    });
+    return c;
+  }
+
+  function render() {
+    var box = $('cards');
+    box.textContent = '';
+    updateSummary();
+    if (!rows.length) { box.appendChild(el('p', 'message', 'Nothing yet. When she saves an answer or a comment it will appear here.')); return; }
+    var sorted = rows.slice().sort(function (a, b) {
+      var ka = ORDER.indexOf(a.question_key), kb = ORDER.indexOf(b.question_key);
+      if (ka < 0) ka = 99; if (kb < 0) kb = 99;
+      if (ka !== kb) return ka - kb;
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+    sorted.forEach(function (r) { box.appendChild(card(r)); });
+  }
+
+  function open(pass, silent) {
+    secret = pass;
+    $('gate-go').disabled = true;
+    $('gate-msg').textContent = silent ? '' : 'Opening…';
+    return load()
+      .then(function () { keep(pass); $('gate-msg').textContent = ''; })
+      .catch(function (e) {
+        secret = null;
+        forget();
+        show('gate');
+        $('gate-msg').textContent = (e && /not allowed/i.test(e.message)) ? "That passphrase isn't right." : "Couldn't open the inbox. Check the connection and try again.";
+      })
+      .then(function () { $('gate-go').disabled = false; });
+  }
+
+  if (!cfg.url || !cfg.anonKey) { show('off'); return; }
+
+  $('gate-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var p = $('pass').value;
+    if (!p) { $('gate-msg').textContent = 'Type the passphrase first.'; return; }
+    open(p, false).then(function () { $('pass').value = ''; });
+  });
+  $('refresh').addEventListener('click', function () { load().catch(function () { $('summary').textContent = "Couldn't refresh. Try again."; }); });
+  $('lock').addEventListener('click', function () { secret = null; rows = []; forget(); $('cards').textContent = ''; show('gate'); $('pass').focus(); });
+
+  var saved = recall();
+  if (saved) { show('list'); open(saved, true); } else { show('gate'); }
+})();
+</script>
+</body>
+</html>

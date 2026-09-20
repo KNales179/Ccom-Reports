@@ -57,6 +57,27 @@ she will not see her earlier comments there, though you still will.
 Until the two values are filled in, the boxes still show but are greyed out and marked
 "Preview only: saving is not switched on yet."
 
+## Inbox (reading and replying)
+
+`/inbox/` is a private page for reading every answer and comment and replying to them,
+instead of working in the Supabase table. It is not linked from the reports site and asks
+for a passphrase.
+
+One-time setup, after `supabase/schema.sql` has been run:
+
+1. In the Supabase SQL editor, run `supabase/owner-inbox.sql`. It only adds new things.
+2. Make a long random passphrase, for example with
+   `node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"`,
+   and keep it in a password manager.
+3. In the SQL editor, run the one statement shown in the comment at the top of
+   `owner-inbox.sql`, with your passphrase in place of the placeholder. Do not save the real
+   passphrase into the file.
+4. Push, then open `/inbox/` and type the passphrase.
+
+Replies you type there are saved to the `reply` column and appear under her answer the next
+time she opens the page. There is no email alert yet, so the inbox has to be opened to see
+new comments.
+
 ## Adding a report
 
 1. Copy an existing folder (for example `blueprint/`) and rename it.
